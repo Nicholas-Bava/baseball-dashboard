@@ -14,7 +14,8 @@ def search():
 
 @bp.route("/<string:player_name>")
 def player_profile(player_name):
-    data = player_service.get_player_profile(player_name)
-    if not data["batting"] and not data["pitching"]:
+    stat_type = request.args.get("type", "batting")
+    data = player_service.get_player_profile(player_name, stat_type)
+    if not data:
         return jsonify({"error": "Player not found"}), 404
     return jsonify(data)

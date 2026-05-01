@@ -7,23 +7,21 @@ batting_svc = BattingService()
 pitching_svc = PitchingService()
 player_svc = PlayerService()
 
-print("=== HR Leaderboard (2024) ===")
-print(batting_svc.get_leaderboard("homeRuns", season=2024, limit=5))
+from app.repositories.batting_repository import BattingRepository
 
-print("\n=== Judge Career ===")
-print(batting_svc.get_player_career("Aaron Judge"))
+batting_repo = BattingRepository()
 
-print("\n=== 2024 Batting Season Summary ===")
-print(batting_svc.get_season_summary(2024))
+# Check how many seasons we have
+import duckdb
+con = duckdb.connect()
 
-print("\n=== ERA Leaderboard (2024) ===")
-print(pitching_svc.get_leaderboard("era", season=2024, limit=5))
+from app.db.parquet_utils import get_parquet_union
+union = get_parquet_union("batting")
 
-print("\n=== 2024 Pitching Season Summary ===")
-print(pitching_svc.get_season_summary(2024))
+import json
 
-print("\n=== Ohtani Player Profile ===")
-print(player_svc.get_player_profile("Shohei Ohtani"))
+print("=== Judge Batting ===")
+print(json.dumps(player_svc.get_player_profile("Aaron Judge", "batting"), indent=2))
 
-print("\n=== Player Search: soto ===")
-print(player_svc.search("soto"))
+print("=== Scherzer Pitching ===")
+print(json.dumps(player_svc.get_player_profile("Max Scherzer", "pitching"), indent=2))
