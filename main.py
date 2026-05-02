@@ -18,10 +18,6 @@ con = duckdb.connect()
 from app.db.parquet_utils import get_parquet_union
 union = get_parquet_union("batting")
 
+from app.services.league_context_service import LeagueContextService
 import json
 
-print("=== Judge Batting ===")
-print(json.dumps(player_svc.get_player_profile("Aaron Judge", "batting"), indent=2))
-
-print("=== Scherzer Pitching ===")
-print(json.dumps(player_svc.get_player_profile("Max Scherzer", "pitching"), indent=2))

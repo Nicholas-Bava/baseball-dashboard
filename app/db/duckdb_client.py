@@ -1,7 +1,8 @@
+# app/db/duckdb_client.py
 import duckdb
-import os
-
-DB_PATH = os.path.join(os.path.dirname(__file__), "../../data/baseball.duckdb")
 
 def get_connection():
-    return duckdb.connect(DB_PATH)
+    # In-memory connection - no file locking issues
+    # We read directly from Parquet files via get_parquet_union()
+    # so we don't need a persistent DB file
+    return duckdb.connect()
