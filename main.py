@@ -8,7 +8,6 @@ pitching_svc = PitchingService()
 player_svc = PlayerService()
 
 from app.repositories.batting_repository import BattingRepository
-
 batting_repo = BattingRepository()
 
 # Check how many seasons we have
