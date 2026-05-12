@@ -69,6 +69,15 @@ def get_reliever_qualifier(season: int) -> float:
     """
     return round(RELIEVER_MIN_IP * (get_games(season) / DEFAULT_GAMES))
 
+STATCAST_PA_PER_GAME = 2.1
+
+def get_statcast_qualifier(season: int) -> int:
+    """
+    Returns minimum PA for Statcast metric qualification.
+    Based on Baseball Savant's standard of 2.1 PA per team game.
+    """
+    return round(get_games(season) * STATCAST_PA_PER_GAME)
+
 
 # ============================================
 # COUNTING STAT QUALIFIERS
@@ -85,3 +94,28 @@ COUNTING_STAT_MIN_PA = 100
 
 # Minimum IP to be included in pitcher counting stat averages
 COUNTING_STAT_MIN_IP = 20
+
+# Statcast aggregation filters
+# Only batted ball events (type = 'X') are included
+STATCAST_BATTED_BALL_TYPE = 'X'
+
+# Minimum exit velocity to be included in contact quality metrics
+# Null exit velocities (~2%) are excluded - tracking system failures
+STATCAST_MIN_EXIT_VELO = 0  # just checking IS NOT NULL
+
+# Hard hit threshold - Baseball Savant standard
+STATCAST_HARD_HIT_MPH = 95
+
+# Barrel classification uses launch_speed_angle = 6
+# This is Baseball Savant's barrel classification code
+STATCAST_BARREL_CODE = 6
+
+# xBA/xSLG/xwOBA nulls are excluded naturally via AVG()
+# Some batted balls lack expected stats (sac flies, bunts,
+# extreme exit velo/angle combinations outside model range)
+
+# Statcast game type filters
+GAME_TYPE_REGULAR = 'R'
+GAME_TYPE_SPRING = 'S'
+GAME_TYPE_POSTSEASON = ('F', 'D', 'L', 'W')
+GAME_TYPE_ALL = ('R', 'S', 'F', 'D', 'L', 'W')

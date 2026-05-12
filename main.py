@@ -20,10 +20,23 @@ union = get_parquet_union("batting")
 from app.services.league_context_service import LeagueContextService
 import json
 
-from app.services.league_context_service import LeagueContextService
-import json
+import duckdb
+from app.constants.qualifiers import get_statcast_qualifier
 
-league_svc = LeagueContextService()
+con = duckdb.connect()
 
-print("=== Aaron Judge 2022 Rankings ===")
-print(json.dumps(league_svc.get_player_rankings(592450, 2022), indent=2))
+import duckdb
+from app.constants.qualifiers import get_statcast_qualifier
+
+con = duckdb.connect()
+
+df = con.execute(f"""
+    SELECT playerName, season, avg_exit_velo, hard_hit_pct, 
+           barrel_pct, xba, xwoba, whiff_pct, chase_pct
+    FROM read_parquet('data/parquet/statcast_batting_agg_2024.parquet')
+    WHERE total_pa >= {get_statcast_qualifier(2024)}
+    ORDER BY barrel_pct DESC
+    LIMIT 10
+""").df()
+
+print(df.to_string())
