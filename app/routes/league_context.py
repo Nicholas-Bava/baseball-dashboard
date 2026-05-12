@@ -21,3 +21,14 @@ def batting_context():
 
     data = league_context_service.get_batting_context(stat, seasons)
     return jsonify(data)
+
+@bp.route("/rankings/batting")
+def batting_rankings():
+    player_id = request.args.get("playerId", type=int)
+    season = request.args.get("season", type=int)
+
+    if not player_id or not season:
+        return jsonify({"error": "playerId and season required"}), 400
+
+    data = league_context_service.get_player_rankings(player_id, season)
+    return jsonify(data)

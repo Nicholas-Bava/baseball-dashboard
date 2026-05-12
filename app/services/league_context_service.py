@@ -28,3 +28,6 @@ class LeagueContextService:
             ).to_dict()
             for _, row in df.iterrows()
         ]
+
+    def get_player_rankings(self, player_id: int, season: int) -> dict:
+        return self.repo.get_player_rankings(player_id, season)

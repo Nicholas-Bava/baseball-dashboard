@@ -57,3 +57,75 @@ class LeagueContextRepository:
                 })
 
         return pd.DataFrame(results)
+
+    def get_player_rankings(self, player_id: int, season: int) -> dict:
+        """
+        Returns the player's rank for each key stat in a given season.
+        Only ranks against qualified players (502 PA minimum).
+        """
+        union = get_parquet_union("batting")
+        min_pa = get_batting_qualifier(season)
+
+        stats = {
+            'singles': 'DESC',
+            'doubles': 'DESC',
+            'triples': 'DESC',
+            'hits': 'DESC',
+            'homeRuns': 'DESC',
+            'rbi': 'DESC',
+            'stolenBases': 'DESC',
+            'avg': 'DESC',
+            'ops': 'DESC',
+            'xbh': 'DESC',
+        }
+
+        rankings = {}
+
+        for stat, direction in stats.items():
+            if stat == 'singles':
+                stat_expr = """
+                        (TRY_CAST(hits AS INTEGER)
+                        - TRY_CAST(doubles AS INTEGER)
+                        - TRY_CAST(triples AS INTEGER)
+                        - TRY_CAST(homeRuns AS INTEGER)) as singles
+                    """
+                order_expr = "singles"
+                null_check = "singles IS NOT NULL"
+            elif stat == 'xbh':
+                stat_expr = """
+                        (TRY_CAST(doubles AS INTEGER)
+                        + TRY_CAST(triples AS INTEGER)
+                        + TRY_CAST(homeRuns AS INTEGER)) as xbh
+                    """
+                order_expr = "xbh"
+                null_check = "xbh IS NOT NULL"
+            else:
+                stat_expr = stat
+                order_expr = f"TRY_CAST({stat} AS FLOAT)"
+                null_check = f"TRY_CAST({stat} AS FLOAT) IS NOT NULL"
+
+            # season and min_pa are parameterized with ?
+            # stat column names stay in f-string but come from
+            # our hardcoded dictionary — never from user input
+            df = self.con.execute(f"""
+                    SELECT playerName, playerId, {stat_expr},
+                        RANK() OVER (ORDER BY {order_expr} {direction}) as rank,
+                        COUNT(*) OVER () as total_players
+                    FROM {union}
+                    WHERE season = ?
+                    AND TRY_CAST(plateAppearances AS INTEGER) >= ?
+                    AND {null_check}
+                """, [season, min_pa]).df()
+
+            player_row = df[df['playerId'] == player_id]
+
+            if not player_row.empty:
+                rankings[stat] = {
+                    'rank': int(player_row.iloc[0]['rank']),
+                    'value': str(player_row.iloc[0][stat]),
+                    'totalPlayers': int(player_row.iloc[0]['total_players'])
+                }
+            else:
+                rankings[stat] = None
+
+        return rankings

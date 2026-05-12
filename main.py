@@ -20,3 +20,10 @@ union = get_parquet_union("batting")
 from app.services.league_context_service import LeagueContextService
 import json
 
+from app.services.league_context_service import LeagueContextService
+import json
+
+league_svc = LeagueContextService()
+
+print("=== Aaron Judge 2022 Rankings ===")
+print(json.dumps(league_svc.get_player_rankings(592450, 2022), indent=2))
