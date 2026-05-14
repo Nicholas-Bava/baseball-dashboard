@@ -40,3 +40,71 @@ df = con.execute(f"""
 """).df()
 
 print(df.to_string())
+
+df = con.execute("""
+    SELECT 
+        COUNT(CASE WHEN events IS NOT NULL THEN 1 END) as total_pa,
+        COUNT(CASE WHEN events = 'walk' THEN 1 END) as walks,
+        COUNT(CASE WHEN events = 'intent_walk' THEN 1 END) as ibb,
+        COUNT(CASE WHEN events = 'hit_by_pitch' THEN 1 END) as hbp,
+        COUNT(CASE WHEN events = 'sac_fly' THEN 1 END) as sac_flies,
+        COUNT(CASE WHEN events = 'sac_bunt' THEN 1 END) as sac_bunts
+    FROM read_parquet('data/parquet/statcast_2024.parquet')
+    WHERE batter = 592450
+    AND game_type = 'R'
+""").df()
+
+print(df.to_string())
+
+df = con.execute("""
+    SELECT *
+    FROM read_parquet('data/parquet/statcast_2024.parquet')
+    LIMIT 1
+""").df()
+
+print(df.columns.tolist())
+
+df = con.execute("""
+    SELECT 
+        hyper_speed,
+        launch_speed,
+        estimated_ba_using_speedangle
+    FROM read_parquet('data/parquet/statcast_2024.parquet')
+    WHERE batter = 592450
+    AND type = 'X'
+    AND game_type = 'R'
+    AND hyper_speed IS NOT NULL
+    LIMIT 5
+""").df()
+
+print(df.to_string())
+
+df = con.execute("""
+    SELECT 
+        COUNT(*) as all_batted_balls,
+        COUNT(CASE WHEN launch_speed IS NOT NULL THEN 1 END) as with_exit_velo,
+        SUM(estimated_woba_using_speedangle) as sum_xwoba,
+        AVG(estimated_woba_using_speedangle) as avg_xwoba
+    FROM read_parquet('data/parquet/statcast_2024.parquet')
+    WHERE batter = 592450
+    AND type = 'X'
+    AND game_type = 'R'
+""").df()
+
+print(df.to_string())
+
+df = con.execute("""
+    SELECT 
+        events,
+        woba_value,
+        woba_denom,
+        COUNT(*) as count
+    FROM read_parquet('data/parquet/statcast_2024.parquet')
+    WHERE batter = 592450
+    AND game_type = 'R'
+    AND events IS NOT NULL
+    GROUP BY events, woba_value, woba_denom
+    ORDER BY events
+""").df()
+
+print(df.to_string())

@@ -59,9 +59,9 @@ def aggregate_season(year: int):
     expected_df = con.execute(f"""
         SELECT
             batter as playerId,
-            ROUND(AVG(estimated_ba_using_speedangle), 3) as xba,
-            ROUND(AVG(estimated_slg_using_speedangle), 3) as xslg,
-            ROUND(AVG(estimated_woba_using_speedangle), 3) as xwoba_contact
+            ROUND(AVG(estimated_ba_using_speedangle), 3) as xbacon,
+            ROUND(AVG(estimated_slg_using_speedangle), 3) as xslgcon,
+            ROUND(AVG(estimated_woba_using_speedangle), 3) as xwobacon
         FROM read_parquet('{statcast_path.replace(chr(92), '/')}')
         WHERE type = '{STATCAST_BATTED_BALL_TYPE}'
         AND game_type = '{GAME_TYPE_REGULAR}'
@@ -80,8 +80,14 @@ def aggregate_season(year: int):
             COUNT(CASE WHEN events IS NOT NULL THEN 1 END) as total_pa,
             -- Walks
             COUNT(CASE WHEN events = 'walk' THEN 1 END) as walks,
+            -- Intentional Walks
+            COUNT(CASE WHEN events = 'intent_walk' THEN 1 END) as ibb,
             -- Hit by pitch
             COUNT(CASE WHEN events = 'hit_by_pitch' THEN 1 END) as hbp,
+            -- Sac Flies
+            COUNT(CASE WHEN events = 'sac_fly' THEN 1 END) as sac_flies,
+            -- Sac Bunts
+            COUNT(CASE WHEN events = 'sac_bunt' THEN 1 END) as sac_bunts,
             -- Total swings
             COUNT(CASE WHEN description IN (
                 'swinging_strike', 'swinging_strike_blocked',
@@ -123,7 +129,7 @@ def aggregate_season(year: int):
     # ============================================
     merged = contact_df.merge(expected_df, on='playerId', how='left')
     merged = merged.merge(
-        discipline_df[['playerId', 'total_pa', 'walks', 'hbp',
+        discipline_df[['playerId', 'total_pa', 'walks', 'hbp', 'ibb', 'sac_flies', 'sac_bunts',
                        'total_swings', 'whiff_pct', 'chase_pct', 'contact_pct']],
         on='playerId',
         how='left'
@@ -133,14 +139,25 @@ def aggregate_season(year: int):
     weights = get_woba_weights(year)
 
     merged['xwoba'] = (
-            (merged['xwoba_contact'] * merged['total_batted_balls'] +
-             merged['walks'] * weights['wBB'] +
+            (merged['xwobacon'] * merged['total_batted_balls'] +
+             (merged['walks'] - merged['ibb']) * weights['wBB'] +
              merged['hbp'] * weights['wHBP']) /
-            merged['total_pa']
+            (merged['total_pa'] - merged['sac_bunts'] - merged['ibb'])
     ).round(3)
 
-    # Drop intermediate column now that full xwoba is calculated
-    merged = merged.drop(columns=['xwoba_contact'])
+    merged['ab'] = (
+            merged['total_pa'] - merged['walks'] -
+            merged['hbp'] - merged['sac_flies'] - merged['sac_bunts']
+    )
+
+    merged['xba'] = (
+            merged['xbacon'] * merged['total_batted_balls'] / merged['ab']
+    ).round(3)
+
+    # Full xSLG - same adjustment
+    merged['xslg'] = (
+            merged['xslgcon'] * merged['total_batted_balls'] / merged['total_pa']
+    ).round(3)
 
     # Get player names from batting stats Parquet - useful for debug
     batting_path = os.path.join(PARQUET_DIR, f"batting_{year}.parquet")
