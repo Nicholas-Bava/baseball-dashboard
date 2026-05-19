@@ -39,15 +39,11 @@ def aggregate_season(year: int):
             COUNT(*) as total_batted_balls,
             ROUND(AVG(launch_speed), 1) as avg_exit_velo,
             ROUND(AVG(launch_angle), 1) as avg_launch_angle,
-            -- Hard hit % - balls >= 95mph / total tracked batted balls
             ROUND(100.0 * SUM(CASE WHEN launch_speed >= {STATCAST_HARD_HIT_MPH} THEN 1 ELSE 0 END) / COUNT(*), 1) as hard_hit_pct,
-            -- Barrel % - launch_speed_angle = 6 is Baseball Savant's barrel code
-            ROUND(100.0 * SUM(CASE WHEN launch_speed_angle = {STATCAST_BARREL_CODE} THEN 1 ELSE 0 END) / COUNT(*), 1) as barrel_pct,
-            -- Sweet spot % - launch angle between 8 and 32 degrees
-            ROUND(100.0 * SUM(CASE WHEN launch_angle BETWEEN 8 AND 32 THEN 1 ELSE 0 END) / COUNT(*), 1) as sweet_spot_pct
+            ROUND(100.0 * SUM(CASE WHEN launch_speed_angle = {STATCAST_BARREL_CODE} THEN 1 ELSE 0 END) / COUNT(launch_speed), 1) as barrel_pct,
+            ROUND(100.0 * SUM(CASE WHEN launch_angle BETWEEN 8 AND 32 THEN 1 ELSE 0 END) / COUNT(launch_speed), 1) as sweet_spot_pct
         FROM read_parquet('{statcast_path.replace(chr(92), '/')}')
         WHERE type = '{STATCAST_BATTED_BALL_TYPE}'
-        AND launch_speed IS NOT NULL
         AND game_type = '{GAME_TYPE_REGULAR}'
         GROUP BY batter
     """).df()
@@ -61,7 +57,12 @@ def aggregate_season(year: int):
             batter as playerId,
             ROUND(AVG(estimated_ba_using_speedangle), 3) as xbacon,
             ROUND(AVG(estimated_slg_using_speedangle), 3) as xslgcon,
-            ROUND(AVG(estimated_woba_using_speedangle), 3) as xwobacon
+            ROUND(AVG(estimated_woba_using_speedangle), 3) as xwobacon,
+            SUM(estimated_ba_using_speedangle) as sum_xbacon,
+            SUM(estimated_slg_using_speedangle) as sum_xslgcon,
+            SUM(CASE WHEN events != 'intent_walk' 
+                THEN estimated_woba_using_speedangle 
+                ELSE 0 END) as sum_xwobacon
         FROM read_parquet('{statcast_path.replace(chr(92), '/')}')
         WHERE type = '{STATCAST_BATTED_BALL_TYPE}'
         AND game_type = '{GAME_TYPE_REGULAR}'
@@ -106,7 +107,11 @@ def aggregate_season(year: int):
                 'hit_into_play_no_out', 'hit_into_play_score'
             ) THEN 1 END) as chase_swings,
             -- Pitches outside zone
-            COUNT(CASE WHEN zone > 10 THEN 1 END) as total_outside_zone
+            COUNT(CASE WHEN zone > 10 THEN 1 END) as total_outside_zone,
+            SUM(woba_denom) as woba_denom_sum,
+            SUM(CASE WHEN type != 'X' AND woba_denom = 1 
+                THEN woba_value ELSE 0 END) as non_contact_woba,
+            COUNT(CASE WHEN events = 'catcher_interf' THEN 1 END) as ci
         FROM read_parquet('{statcast_path.replace(chr(92), '/')}')
         WHERE game_type = '{GAME_TYPE_REGULAR}'
         GROUP BY batter
@@ -129,8 +134,8 @@ def aggregate_season(year: int):
     # ============================================
     merged = contact_df.merge(expected_df, on='playerId', how='left')
     merged = merged.merge(
-        discipline_df[['playerId', 'total_pa', 'walks', 'hbp', 'ibb', 'sac_flies', 'sac_bunts',
-                       'total_swings', 'whiff_pct', 'chase_pct', 'contact_pct']],
+        discipline_df[['playerId', 'total_pa', 'walks', 'hbp', 'ibb', 'sac_flies', 'ci', 'sac_bunts',
+                       'total_swings', 'whiff_pct', 'woba_denom_sum', 'chase_pct', 'contact_pct']],
         on='playerId',
         how='left'
     )
@@ -139,24 +144,22 @@ def aggregate_season(year: int):
     weights = get_woba_weights(year)
 
     merged['xwoba'] = (
-            (merged['xwobacon'] * merged['total_batted_balls'] +
-             (merged['walks'] - merged['ibb']) * weights['wBB'] +
-             merged['hbp'] * weights['wHBP']) /
-            (merged['total_pa'] - merged['sac_bunts'] - merged['ibb'])
-    ).round(3)
+                              merged['sum_xwobacon'] +
+                              merged['walks'] * weights['wBB'] +
+                              merged['hbp'] * weights['wHBP']
+                      ) / (merged['woba_denom_sum'] - merged['ci'])
 
     merged['ab'] = (
-            merged['total_pa'] - merged['walks'] -
-            merged['hbp'] - merged['sac_flies'] - merged['sac_bunts']
+            merged['total_pa'] - merged['walks'] - merged['ibb'] -
+            merged['hbp'] - merged['sac_flies'] - merged['sac_bunts'] - merged['ci']
     )
 
     merged['xba'] = (
-            merged['xbacon'] * merged['total_batted_balls'] / merged['ab']
+            merged['sum_xbacon'] / merged['ab']
     ).round(3)
 
-    # Full xSLG - same adjustment
     merged['xslg'] = (
-            merged['xslgcon'] * merged['total_batted_balls'] / merged['total_pa']
+            merged['sum_xslgcon'] / merged['ab']
     ).round(3)
 
     # Get player names from batting stats Parquet - useful for debug
