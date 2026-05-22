@@ -111,7 +111,8 @@ def aggregate_season(year: int):
             SUM(woba_denom) as woba_denom_sum,
             SUM(CASE WHEN type != 'X' AND woba_denom = 1 
                 THEN woba_value ELSE 0 END) as non_contact_woba,
-            COUNT(CASE WHEN events = 'catcher_interf' THEN 1 END) as ci
+            COUNT(CASE WHEN events = 'catcher_interf' THEN 1 END) as ci,
+            COUNT(CASE WHEN events = 'truncated_pa' THEN 1 END) as truncated
         FROM read_parquet('{statcast_path.replace(chr(92), '/')}')
         WHERE game_type = '{GAME_TYPE_REGULAR}'
         GROUP BY batter
@@ -134,7 +135,7 @@ def aggregate_season(year: int):
     # ============================================
     merged = contact_df.merge(expected_df, on='playerId', how='left')
     merged = merged.merge(
-        discipline_df[['playerId', 'total_pa', 'walks', 'hbp', 'ibb', 'sac_flies', 'ci', 'sac_bunts',
+        discipline_df[['playerId', 'total_pa', 'walks', 'hbp', 'ibb', 'sac_flies', 'ci', 'sac_bunts', 'truncated',
                        'total_swings', 'whiff_pct', 'woba_denom_sum', 'chase_pct', 'contact_pct']],
         on='playerId',
         how='left'
@@ -151,7 +152,8 @@ def aggregate_season(year: int):
 
     merged['ab'] = (
             merged['total_pa'] - merged['walks'] - merged['ibb'] -
-            merged['hbp'] - merged['sac_flies'] - merged['sac_bunts'] - merged['ci']
+            merged['hbp'] - merged['sac_flies'] - merged['sac_bunts'] -
+            merged['ci'] - merged['truncated']
     )
 
     merged['xba'] = (

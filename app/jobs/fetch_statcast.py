@@ -10,21 +10,12 @@ PARQUET_DIR = os.path.join(os.path.dirname(__file__), "../../data/parquet")
 pybaseball.cache.enable()
 
 def get_season_dates(year: int):
-    """Returns start and end dates for a given MLB season."""
-    season_dates = {
-        2015: ("2015-04-05", "2015-10-04"),
-        2016: ("2016-04-03", "2016-10-02"),
-        2017: ("2017-04-02", "2017-10-01"),
-        2018: ("2018-03-29", "2018-09-30"),
-        2019: ("2019-03-20", "2019-09-29"),
-        2020: ("2020-07-23", "2020-09-27"),  # COVID shortened
-        2021: ("2021-04-01", "2021-10-03"),
-        2022: ("2022-04-07", "2022-10-05"),
-        2023: ("2023-03-30", "2023-10-01"),
-        2024: ("2024-03-20", "2024-09-29"),
-        2025: ("2025-03-27", "2025-09-28"),
-    }
-    return season_dates.get(year)
+    """
+    Uses full year range to capture all possible games.
+    game_type = 'R' filter in queries handles excluding
+    spring training, playoffs etc.
+    """
+    return (f"{year}-01-01", f"{year}-12-31")
 
 def fetch_and_store_statcast(year: int):
     path = os.path.join(PARQUET_DIR, f"statcast_{year}.parquet")
