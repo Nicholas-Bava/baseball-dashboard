@@ -78,7 +78,7 @@ def aggregate_season(year: int):
         SELECT
             batter as playerId,
             -- Total plate appearances
-            COUNT(CASE WHEN events IS NOT NULL THEN 1 END) as total_pa,
+            COUNT(CASE WHEN events IS NOT NULL AND events != 'truncated_pa' THEN 1 END) as total_pa,
             -- Walks
             COUNT(CASE WHEN events = 'walk' THEN 1 END) as walks,
             -- Intentional Walks
@@ -86,7 +86,7 @@ def aggregate_season(year: int):
             -- Hit by pitch
             COUNT(CASE WHEN events = 'hit_by_pitch' THEN 1 END) as hbp,
             -- Sac Flies
-            COUNT(CASE WHEN events = 'sac_fly' THEN 1 END) as sac_flies,
+            COUNT(CASE WHEN events IN ('sac_fly', 'sac_fly_double_play') THEN 1 END) as sac_flies,
             -- Sac Bunts
             COUNT(CASE WHEN events = 'sac_bunt' THEN 1 END) as sac_bunts,
             -- Total swings
@@ -112,7 +112,9 @@ def aggregate_season(year: int):
             SUM(CASE WHEN type != 'X' AND woba_denom = 1 
                 THEN woba_value ELSE 0 END) as non_contact_woba,
             COUNT(CASE WHEN events = 'catcher_interf' THEN 1 END) as ci,
-            COUNT(CASE WHEN events = 'truncated_pa' THEN 1 END) as truncated
+            COUNT(CASE WHEN events = 'truncated_pa' THEN 1 END) as truncated,
+            COUNT(CASE WHEN estimated_ba_using_speedangle is NULL AND events IN ('single', 
+            'double', 'triple', 'home_run', 'field_out', 'force_out', 'grounded_into_double_play') THEN 1 END) AS minus_factor
         FROM read_parquet('{statcast_path.replace(chr(92), '/')}')
         WHERE game_type = '{GAME_TYPE_REGULAR}'
         GROUP BY batter
@@ -136,7 +138,7 @@ def aggregate_season(year: int):
     merged = contact_df.merge(expected_df, on='playerId', how='left')
     merged = merged.merge(
         discipline_df[['playerId', 'total_pa', 'walks', 'hbp', 'ibb', 'sac_flies', 'ci', 'sac_bunts', 'truncated',
-                       'total_swings', 'whiff_pct', 'woba_denom_sum', 'chase_pct', 'contact_pct']],
+                       'total_swings', 'whiff_pct', 'woba_denom_sum', 'chase_pct', 'contact_pct', 'minus_factor']],
         on='playerId',
         how='left'
     )
@@ -153,11 +155,19 @@ def aggregate_season(year: int):
     merged['ab'] = (
             merged['total_pa'] - merged['walks'] - merged['ibb'] -
             merged['hbp'] - merged['sac_flies'] - merged['sac_bunts'] -
-            merged['ci'] - merged['truncated']
+            merged['ci']
+            #- merged['truncated']
+    )
+
+    merged['ab_calc'] = (
+            merged['total_pa'] - merged['walks'] - merged['ibb'] -
+            merged['hbp'] - merged['sac_flies'] - merged['sac_bunts'] -
+            merged['ci'] - merged['minus_factor']
+        # - merged['truncated']
     )
 
     merged['xba'] = (
-            merged['sum_xbacon'] / merged['ab']
+            merged['sum_xbacon'] / merged['ab_calc']
     ).round(3)
 
     merged['xslg'] = (

@@ -104,7 +104,7 @@ STATCAST_BATTED_BALL_TYPE = 'X'
 STATCAST_MIN_EXIT_VELO = 0  # just checking IS NOT NULL
 
 # Hard hit threshold - Baseball Savant standard
-STATCAST_HARD_HIT_MPH = 95
+STATCAST_HARD_HIT_MPH = 95.0
 
 # Barrel classification uses launch_speed_angle = 6
 # This is Baseball Savant's barrel classification code
