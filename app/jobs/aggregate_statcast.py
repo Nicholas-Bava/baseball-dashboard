@@ -33,6 +33,7 @@ def aggregate_season(year: int):
     # QUERY 1 — Contact quality metrics
     # Filter: batted balls only with valid exit velo
     # ============================================
+
     contact_df = con.execute(f"""
         SELECT
             batter as playerId,
@@ -47,6 +48,7 @@ def aggregate_season(year: int):
         AND game_type = '{GAME_TYPE_REGULAR}'
         GROUP BY batter
     """).df()
+
 
     # ============================================
     # QUERY 2 — Expected stats
@@ -91,20 +93,40 @@ def aggregate_season(year: int):
             COUNT(CASE WHEN events = 'sac_bunt' THEN 1 END) as sac_bunts,
             -- Total swings
             COUNT(CASE WHEN description IN (
-                'swinging_strike', 'swinging_strike_blocked',
-                'foul', 'foul_tip', 'hit_into_play',
-                'hit_into_play_no_out', 'hit_into_play_score',
-                'foul_bunt', 'missed_bunt'
+                -- Whiffs
+                'swinging_strike', 
+                'swinging_strike_blocked', 
+                'swinging_pitchout',
+                -- Fouls
+                'foul', 
+                'foul_tip', 
+                'foul_pitchout',
+                'foul_bunt',
+                -- Balls in Play
+                'hit_into_play', 
+                'hit_into_play_no_out', 
+                'hit_into_play_score',
+                -- Rare Pitchout Contacts
+                'pitchout_hit_into_play',
+                'pitchout_hit_into_play_no_out',
+                'pitchout_hit_into_play_score'
             ) THEN 1 END) as total_swings,
             -- Whiffs
             COUNT(CASE WHEN description IN (
-                'swinging_strike', 'swinging_strike_blocked'
+                'swinging_strike', 
+                'swinging_strike_blocked', 
+                'swinging_pitchout',
+                'foul_tip'
             ) THEN 1 END) as total_whiffs,
             -- Chase swings
             COUNT(CASE WHEN zone > 10 AND description IN (
-                'swinging_strike', 'swinging_strike_blocked',
-                'foul', 'foul_tip', 'hit_into_play',
-                'hit_into_play_no_out', 'hit_into_play_score'
+                'swinging_strike', 
+                'swinging_strike_blocked',
+                'foul', 
+                'foul_tip', 
+                'hit_into_play',
+                'hit_into_play_no_out', 
+                'hit_into_play_score'
             ) THEN 1 END) as chase_swings,
             -- Pitches outside zone
             COUNT(CASE WHEN zone > 10 THEN 1 END) as total_outside_zone,

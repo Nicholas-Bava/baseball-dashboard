@@ -8,9 +8,10 @@ print("=== Aaron Judge ===")
 for year in range(2017, 2026):
     df = con.execute(f"""
         SELECT playerName, season, avg_exit_velo, hard_hit_pct, 
-               barrel_pct, xba, xwoba, xbacon, xwobacon, avg_launch_angle, ab, total_pa
+               barrel_pct, xba, xwoba, xbacon, xwobacon, avg_launch_angle, ab, total_pa,
+               whiff_pct, chase_pct, contact_pct
         FROM read_parquet('data/parquet/statcast_batting_agg_{year}.parquet')
-        WHERE playerName = 'Juan Soto'
+        WHERE playerName = 'Steven Kwan'
     """).df()
     print(df.to_string())
     print()
@@ -54,23 +55,26 @@ for year in [2017, 2024]:
 #     print(df4.to_string())
 #     print()
 
-for year in [2024]:
+years = [2023]
+bid = 680757
+
+for year in years:
     df4 = con.execute(f"""
-        SELECT launch_speed, events FROM read_parquet('data/parquet/statcast_{year}.parquet')
-        WHERE batter = 665742
+        SELECT launch_angle, events FROM read_parquet('data/parquet/statcast_{year}.parquet')
+        WHERE batter = {bid}
         AND type = 'X'
         AND game_type = 'R'
         --AND launch_speed IS NULL OR launch_speed <= 0
-        ORDER BY launch_speed ASC
+        ORDER BY launch_angle ASC
     """).df()
     print(f"{year} launch angle distribution:")
     print(df4.to_string())
     print()
 
-for year in [2024]:
+for year in years:
     df5 = con.execute(f"""
         SELECT events, COUNT(*) FROM read_parquet('data/parquet/statcast_{year}.parquet')
-        WHERE batter = 665742
+        WHERE batter = {bid}
         --AND type = 'X'
         AND game_type = 'R'
         GROUP BY events
@@ -80,16 +84,28 @@ for year in [2024]:
     print(df5.to_string())
     print()
 
-for year in [2024]:
+for year in years:
     df6 = con.execute(f"""
         SELECT events, COUNT(*) FROM read_parquet('data/parquet/statcast_{year}.parquet')
-        WHERE batter = 665742
+        WHERE batter = {bid}
         AND type = 'X'
         AND game_type = 'R'
-        AND launch_speed IS NOT NULL
+        AND launch_angle IS NOT NULL
         GROUP BY events
         --LIMIT 5
     """).df()
     print(f"{year}:")
     print(df6.to_string())
+    print()
+
+for year in years:
+    df7 = con.execute(f"""
+                      SELECT description, COUNT(*) FROM read_parquet('data/parquet/statcast_{year}.parquet')
+                      WHERE batter = 621566
+                      AND game_type = 'R'
+                      GROUP BY description
+                      ORDER BY COUNT(*) DESC
+                    """).df()
+    print(f"{year}:")
+    print(df7.to_string())
     print()
