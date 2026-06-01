@@ -109,3 +109,27 @@ for year in years:
     print(f"{year}:")
     print(df7.to_string())
     print()
+
+# Check Judge 2024 zone breakdown
+df = con.execute("""
+    SELECT zone, batted_balls_in_zone, xbacon, xwobacon, 
+           avg_exit_velo, barrel_pct, whiff_pct, swing_pct
+    FROM read_parquet('data/parquet/statcast_zones_2024.parquet')
+    WHERE playerId = 592450
+    ORDER BY zone
+""").df()
+
+print(df.to_string())
+
+from app.services.statcast_service import StatcastService
+
+svc = StatcastService()
+
+print("=== Judge 2024 Zone Data ===")
+import json
+data = svc.get_player_zone_data(592450, 2024)
+print(json.dumps(data['zones'][:3], indent=2))
+
+print("\n=== Judge 2024 Season Statcast ===")
+season = svc.get_player_season_statcast(592450, 2024)
+print(json.dumps({k: v for k, v in season.items() if k in ['xba', 'xwoba', 'barrel_pct', 'avg_exit_velo']}, indent=2))

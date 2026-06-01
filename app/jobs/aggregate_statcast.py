@@ -193,7 +193,7 @@ def aggregate_season(year: int):
     ).round(3)
 
     merged['xslg'] = (
-            merged['sum_xslgcon'] / merged['ab']
+            merged['sum_xslgcon'] / merged['ab_calc']
     ).round(3)
 
     # Get player names from batting stats Parquet - useful for debug
