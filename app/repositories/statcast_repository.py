@@ -8,35 +8,37 @@ PARQUET_DIR = os.path.join(os.path.dirname(__file__), "../../data/parquet")
 
 class StatcastRepository:
 
-    def __init__(self):
-        self.con = duckdb.connect()
+    # def __init__(self):
+    #     self.con = duckdb.connect()
 
     def get_player_zones(self, player_id: int, season: int) -> pd.DataFrame:
         """
         Returns zone-level Statcast data for a specific player and season.
         One row per zone.
         """
+        con = duckdb.connect()
         zone_path = os.path.join(PARQUET_DIR, f"statcast_zones_{season}.parquet")
         zone_path = zone_path.replace("\\", "/")
 
         if not os.path.exists(zone_path):
             return pd.DataFrame()
 
-        return self.con.execute(f"""
+        return con.execute(f"""
             SELECT zone, batted_balls_in_zone, xbacon, xwobacon,
                    avg_exit_velo, avg_launch_angle, hard_hit_pct,
                    barrel_pct, sweet_spot_pct, whiff_pct, swing_pct
             FROM read_parquet('{zone_path}')
-            WHERE playerId = ?
+            WHERE CAST(playerId AS INTEGER) = {player_id}
             AND zone IS NOT NULL
             ORDER BY zone
-        """, [player_id]).df()
+        """).df()
 
     def get_league_zone_averages(self, season: int) -> pd.DataFrame:
         """
         Returns league average stats per zone for a given season.
         Queried directly from raw pitch-by-pitch Statcast data.
         """
+        con = duckdb.connect()
         statcast_path = os.path.join(PARQUET_DIR, f"statcast_{season}.parquet")
         statcast_path = statcast_path.replace("\\", "/")
 
@@ -44,7 +46,7 @@ class StatcastRepository:
             return pd.DataFrame()
 
         # Contact quality - batted balls only
-        contact_df = self.con.execute(f"""
+        contact_df = con.execute(f"""
             SELECT
                 zone,
                 COUNT(*) as total_batted_balls,
@@ -63,7 +65,7 @@ class StatcastRepository:
         """).df()
 
         # Swing/discipline - all pitches
-        discipline_df = self.con.execute(f"""
+        discipline_df = con.execute(f"""
             SELECT
                 zone,
                 ROUND(100.0 * COUNT(CASE WHEN description IN (
@@ -96,23 +98,25 @@ class StatcastRepository:
         """
         Returns season-level Statcast aggregates for a player.
         """
+        con = duckdb.connect()
         agg_path = os.path.join(PARQUET_DIR, f"statcast_batting_agg_{season}.parquet")
         agg_path = agg_path.replace("\\", "/")
 
         if not os.path.exists(agg_path):
             return pd.DataFrame()
 
-        return self.con.execute(f"""
+        return con.execute(f"""
             SELECT *
             FROM read_parquet('{agg_path}')
-            WHERE playerId = ?
-        """, [player_id]).df()
+            WHERE CAST(playerId AS INTEGER) = {player_id}
+        """).df()
 
     def get_player_statcast_rankings(self, player_id: int, season: int) -> dict:
         """
         Returns a player's rank for each Statcast metric
         among qualified batters for that season.
         """
+        con = duckdb.connect()
         from app.constants.qualifiers import get_statcast_qualifier
 
         agg_path = os.path.join(PARQUET_DIR, f"statcast_batting_agg_{season}.parquet")
@@ -138,7 +142,7 @@ class StatcastRepository:
         rankings = {}
 
         for stat, direction in stats.items():
-            df = self.con.execute(f"""
+            df = con.execute(f"""
                 SELECT playerId,
                     {stat},
                     RANK() OVER (ORDER BY {stat} {direction}) as rank,

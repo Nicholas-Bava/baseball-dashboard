@@ -31,15 +31,10 @@ class StatcastService:
         }
 
     def get_player_season_statcast(self, player_id: int, season: int) -> dict:
-        """
-        Returns season-level Statcast aggregates for a player.
-        Used in the season modal stats table.
-        """
         df = self.repo.get_player_season_statcast(player_id, season)
-
+        print(f"DEBUG: player_id={player_id} type={type(player_id)} season={season} empty={df.empty}")
         if df.empty:
             return {}
-
         return df.iloc[0].to_dict()
 
     def get_player_statcast_rankings(self, player_id: int, season: int) -> dict:

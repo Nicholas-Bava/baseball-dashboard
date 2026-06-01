@@ -135,3 +135,11 @@ season = svc.get_player_season_statcast(592450, 2024)
 print(json.dumps({k: v for k, v in season.items() if k in ['xba', 'xwoba', 'barrel_pct', 'avg_exit_velo']}, indent=2))
 
 print(json.dumps(svc.get_player_statcast_rankings(592450, 2024), indent=2))
+
+df = con.execute("""
+    SELECT playerId, playerName, season, avg_exit_velo, xba, xwoba
+    FROM read_parquet('data/parquet/statcast_batting_agg_2022.parquet')
+    WHERE playerId = 592450
+""").df()
+
+print(df.to_string())
