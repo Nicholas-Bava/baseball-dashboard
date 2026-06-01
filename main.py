@@ -143,3 +143,21 @@ df = con.execute("""
 """).df()
 
 print(df.to_string())
+
+print("=== 2024 zones for Judge ===")
+df = con.execute("""
+    SELECT zone, xbacon, xwobacon, avg_exit_velo
+    FROM read_parquet('data/parquet/statcast_zones_2024.parquet')
+    WHERE CAST(playerId AS INTEGER) = 592450
+    ORDER BY zone
+""").df()
+print(df.to_string())
+
+print("\n=== 2019 zones for Judge ===")
+df2 = con.execute("""
+    SELECT zone, xbacon, xwobacon, avg_exit_velo
+    FROM read_parquet('data/parquet/statcast_zones_2019.parquet')
+    WHERE CAST(playerId AS INTEGER) = 592450
+    ORDER BY zone
+""").df()
+print(df2.to_string())

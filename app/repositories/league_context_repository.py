@@ -1,5 +1,6 @@
 # app/repositories/league_context_repository.py
 import pandas as pd
+import duckdb
 from app.db.duckdb_client import get_connection
 from app.db.parquet_utils import get_parquet_union
 from app.constants.qualifiers import (
@@ -9,15 +10,13 @@ from app.constants.qualifiers import (
 
 class LeagueContextRepository:
 
-    def __init__(self):
-        self.con = get_connection()
-
     def get_batting_league_context(self, stat: str, seasons: list) -> pd.DataFrame:
         """
         Returns league average and league leader for a given batting stat
         across multiple seasons. Uses appropriate PA qualifier based on
         whether the stat is a rate stat or counting stat.
         """
+        con = duckdb.connect()
         union = get_parquet_union("batting")
         results = []
 
@@ -26,7 +25,7 @@ class LeagueContextRepository:
             # Always use official batting qualifier regardless of stat type
             min_pa = get_batting_qualifier(season)
 
-            df = self.con.execute(f"""
+            df =con.execute(f"""
                 SELECT
                     {season} as season,
                     AVG(TRY_CAST({stat} AS FLOAT)) as leagueAverage,
@@ -38,7 +37,7 @@ class LeagueContextRepository:
             """).df()
 
             # Get the league leader name separately
-            leader_df = self.con.execute(f"""
+            leader_df = con.execute(f"""
                 SELECT playerName, TRY_CAST({stat} AS FLOAT) as statValue
                 FROM {union}
                 WHERE season = {season}
@@ -63,6 +62,7 @@ class LeagueContextRepository:
         Returns the player's rank for each key stat in a given season.
         Only ranks against qualified players (502 PA minimum).
         """
+        con = duckdb.connect()
         union = get_parquet_union("batting")
         min_pa = get_batting_qualifier(season)
 
@@ -107,7 +107,7 @@ class LeagueContextRepository:
             # season and min_pa are parameterized with ?
             # stat column names stay in f-string but come from
             # our hardcoded dictionary — never from user input
-            df = self.con.execute(f"""
+            df = con.execute(f"""
                     SELECT playerName, playerId, {stat_expr},
                         RANK() OVER (ORDER BY {order_expr} {direction}) as rank,
                         COUNT(*) OVER () as total_players
