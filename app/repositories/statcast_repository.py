@@ -107,3 +107,56 @@ class StatcastRepository:
             FROM read_parquet('{agg_path}')
             WHERE playerId = ?
         """, [player_id]).df()
+
+    def get_player_statcast_rankings(self, player_id: int, season: int) -> dict:
+        """
+        Returns a player's rank for each Statcast metric
+        among qualified batters for that season.
+        """
+        from app.constants.qualifiers import get_statcast_qualifier
+
+        agg_path = os.path.join(PARQUET_DIR, f"statcast_batting_agg_{season}.parquet")
+        agg_path = agg_path.replace("\\", "/")
+
+        if not os.path.exists(agg_path):
+            return {}
+
+        min_pa = get_statcast_qualifier(season)
+
+        stats = {
+            'avg_exit_velo': 'DESC',
+            'hard_hit_pct': 'DESC',
+            'barrel_pct': 'DESC',
+            'sweet_spot_pct': 'DESC',
+            'xba': 'DESC',
+            'xwoba': 'DESC',
+            'xwobacon': 'DESC',
+            'whiff_pct': 'ASC',
+            'chase_pct': 'ASC',
+        }
+
+        rankings = {}
+
+        for stat, direction in stats.items():
+            df = self.con.execute(f"""
+                SELECT playerId,
+                    {stat},
+                    RANK() OVER (ORDER BY {stat} {direction}) as rank,
+                    COUNT(*) OVER () as total_players
+                FROM read_parquet('{agg_path}')
+                WHERE total_pa >= {min_pa}
+                AND {stat} IS NOT NULL
+            """).df()
+
+            player_row = df[df['playerId'] == player_id]
+
+            if not player_row.empty:
+                rankings[stat] = {
+                    'rank': int(player_row.iloc[0]['rank']),
+                    'value': str(player_row.iloc[0][stat]),
+                    'totalPlayers': int(player_row.iloc[0]['total_players'])
+                }
+            else:
+                rankings[stat] = None
+
+        return rankings

@@ -33,3 +33,14 @@ def player_season():
         return jsonify({"error": "No Statcast data found"}), 404
 
     return jsonify(data)
+
+@bp.route("/rankings")
+def statcast_rankings():
+    player_id = request.args.get("playerId", type=int)
+    season = request.args.get("season", type=int)
+
+    if not player_id or not season:
+        return jsonify({"error": "playerId and season required"}), 400
+
+    data = statcast_service.get_player_statcast_rankings(player_id, season)
+    return jsonify(data)

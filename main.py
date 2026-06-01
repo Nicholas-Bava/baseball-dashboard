@@ -133,3 +133,5 @@ print(json.dumps(data['zones'][:3], indent=2))
 print("\n=== Judge 2024 Season Statcast ===")
 season = svc.get_player_season_statcast(592450, 2024)
 print(json.dumps({k: v for k, v in season.items() if k in ['xba', 'xwoba', 'barrel_pct', 'avg_exit_velo']}, indent=2))
+
+print(json.dumps(svc.get_player_statcast_rankings(592450, 2024), indent=2))

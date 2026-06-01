@@ -41,3 +41,6 @@ class StatcastService:
             return {}
 
         return df.iloc[0].to_dict()
+
+    def get_player_statcast_rankings(self, player_id: int, season: int) -> dict:
+        return self.repo.get_player_statcast_rankings(player_id, season)
