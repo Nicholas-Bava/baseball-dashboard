@@ -1,4 +1,6 @@
 # app/services/statcast_service.py
+import numpy as np
+
 from app.repositories.statcast_repository import StatcastRepository
 
 class StatcastService:
@@ -23,6 +25,8 @@ class StatcastService:
             on='zone',
             how='left'
         )
+
+        merged = merged.replace({np.nan: None})
 
         return {
             'playerId': player_id,
