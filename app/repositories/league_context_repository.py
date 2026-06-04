@@ -1,6 +1,10 @@
 # app/repositories/league_context_repository.py
+import os
+
 import pandas as pd
 import duckdb
+
+from app.constants.woba_weights import get_woba_weights
 from app.db.duckdb_client import get_connection
 from app.db.parquet_utils import get_parquet_union
 from app.constants.qualifiers import (
@@ -129,3 +133,62 @@ class LeagueContextRepository:
                 rankings[stat] = None
 
         return rankings
+
+    def get_stat_distribution(self, stat: str, seasons: list) -> dict:
+        result = {}
+        con = duckdb.connect()
+        union = get_parquet_union("batting")
+
+        STAT_MAP = {
+            'avg': 'AVG',
+            'obp': 'OBP',
+            'slg': 'SLG',
+            'ops': 'OPS',
+            'homeRuns': 'homeRuns',
+            'rbi': 'rbi',
+            'hits': 'hits',
+            'baseOnBalls': 'baseOnBalls',
+        }
+
+        for season in seasons:
+            min_pa = get_batting_qualifier(season)
+
+            if stat == 'woba':
+                weights = get_woba_weights(season)
+                df = con.execute(f"""
+                    SELECT
+                        (
+                            (CAST(baseOnBalls AS DOUBLE) - CAST(intentionalWalks AS DOUBLE)) * {weights['wBB']} +
+                            CAST(hitByPitch AS DOUBLE) * {weights['wHBP']} +
+                            (CAST(hits AS DOUBLE) - CAST(doubles AS DOUBLE) - CAST(triples AS DOUBLE) - CAST(homeRuns AS DOUBLE)) * {weights['w1B']} +
+                            CAST(doubles AS DOUBLE) * {weights['w2B']} +
+                            CAST(triples AS DOUBLE) * {weights['w3B']} +
+                            CAST(homeRuns AS DOUBLE) * {weights['wHR']}
+                        ) /
+                        NULLIF(
+                            CAST(atBats AS DOUBLE) +
+                            CAST(baseOnBalls AS DOUBLE) - CAST(intentionalWalks AS DOUBLE) +
+                            CAST(hitByPitch AS DOUBLE) +
+                            CAST(sacFlies AS DOUBLE),
+                        0) as value
+                    FROM {union}
+                    WHERE season = {season}
+                    AND CAST(plateAppearances AS INTEGER) >= {min_pa}
+                    AND hits IS NOT NULL
+                """).df()
+            else:
+                col = STAT_MAP.get(stat)
+                if not col:
+                    continue
+
+                df = con.execute(f"""
+                    SELECT CAST({col} AS DOUBLE) as value
+                    FROM {union}
+                    WHERE season = {season}
+                    AND CAST(plateAppearances AS INTEGER) >= {min_pa}
+                    AND {col} IS NOT NULL
+                """).df()
+
+            result[season] = df['value'].dropna().tolist()
+
+        return result

@@ -161,3 +161,8 @@ df2 = con.execute("""
     ORDER BY zone
 """).df()
 print(df2.to_string())
+
+from app.repositories.batting_repository import BattingRepository
+repo = BattingRepository()
+df = repo.get_by_player('aaron judge')
+print(df[['season', 'avg', 'ops', 'woba']].to_string())

@@ -32,3 +32,16 @@ def batting_rankings():
 
     data = league_context_service.get_player_rankings(player_id, season)
     return jsonify(data)
+
+
+@bp.route("/distribution")
+def stat_distribution():
+    stat = request.args.get("stat", "avg")
+    seasons_str = request.args.get("seasons", "")
+    seasons = [int(s) for s in seasons_str.split(",") if s]
+
+    if not seasons:
+        return jsonify({"error": "seasons required"}), 400
+
+    data = league_context_service.get_stat_distribution(stat, seasons)
+    return jsonify(data)

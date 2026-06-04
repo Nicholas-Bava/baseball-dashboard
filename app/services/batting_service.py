@@ -14,12 +14,17 @@ class BattingService:
         df = self.repo.get_by_player(player_name)
         if df.empty:
             return {}
+
+        # Use to_json then back to dict to handle numpy type serialization
+        import json
+        seasons = json.loads(df.to_json(orient="records"))
+
         return {
             "player": player_name,
-            "seasons": df.to_dict(orient="records"),
-            "career_hr": df["homeRuns"].astype(int).sum(),
-            "career_rbi": df["rbi"].astype(int).sum(),
-            "best_avg": df["avg"].max()
+            "seasons": seasons,
+            "career_hr": int(df["homeRuns"].astype(float).sum()),
+            "career_rbi": int(df["rbi"].astype(float).sum()),
+            "best_avg": float(df["avg"].max())
         }
 
     def get_season_summary(self, season: int) -> dict:

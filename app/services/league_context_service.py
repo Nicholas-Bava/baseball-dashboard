@@ -31,3 +31,6 @@ class LeagueContextService:
 
     def get_player_rankings(self, player_id: int, season: int) -> dict:
         return self.repo.get_player_rankings(player_id, season)
+
+    def get_stat_distribution(self, stat: str, seasons: list) -> dict:
+        return self.repo.get_stat_distribution(stat, seasons)
