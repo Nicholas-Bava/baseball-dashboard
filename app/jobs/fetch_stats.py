@@ -26,7 +26,7 @@ def fetch_and_store_pitching(year: int):
     print(f"  Saved {len(df)} pitching rows → pitching_{year}.parquet")
 
 if __name__ == "__main__":
-    years = range(1990, 2026)  # 1995 through 2025
+    years = range(1950, 1975)  # 1995 through 2025
     total = len(years)
 
     for i, year in enumerate(years):

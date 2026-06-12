@@ -162,7 +162,43 @@ df2 = con.execute("""
 """).df()
 print(df2.to_string())
 
-from app.repositories.batting_repository import BattingRepository
-repo = BattingRepository()
-df = repo.get_by_player('aaron judge')
-print(df[['season', 'avg', 'ops', 'woba']].to_string())
+df4 = con.execute("""
+                  SELECT * FROM read_parquet('data/parquet/batting_1970.parquet')
+                  """).df()
+df4.to_csv("batting_1970.csv", index=False)
+
+df4 = con.execute("""
+                  SELECT * FROM read_parquet('data/parquet/batting_1969.parquet')
+                  """).df()
+df4.to_csv("batting_1969.csv", index=False)
+
+df4 = con.execute("""
+                  SELECT * FROM read_parquet('data/parquet/batting_1968.parquet')
+                  """).df()
+df4.to_csv("batting_1968.csv", index=False)
+
+df4 = con.execute("""
+                  SELECT * FROM read_parquet('data/parquet/batting_1967.parquet')
+                  """).df()
+df4.to_csv("batting_1967.csv", index=False)
+
+df4 = con.execute("""
+                  SELECT * FROM read_parquet('data/parquet/batting_1966.parquet')
+                  """).df()
+df4.to_csv("batting_1966.csv", index=False)
+
+df4 = con.execute("""
+                  SELECT * FROM read_parquet('data/parquet/batting_1972.parquet')
+                  """).df()
+df4.to_csv("batting_1972.csv", index=False)
+
+df4 = con.execute("""
+                  SELECT * FROM read_parquet('data/parquet/batting_1973.parquet')
+                  """).df()
+df4.to_csv("batting_1973.csv", index=False)
+
+df4 = con.execute("""
+                  SELECT * FROM read_parquet('data/parquet/batting_1974.parquet')
+                  """).df()
+df4.to_csv("batting_1974.csv", index=False)
+
